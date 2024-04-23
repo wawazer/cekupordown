@@ -1,0 +1,170 @@
+function sendDailyReport() {
+  var spreadsheetId = "1m-LLOmm4oZQhm6_wLPfoaX8ZhzDXbTMxXv5-MnAMJ6k";
+  var sheetName = "logscheduller";
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+  if (!sheet) {
+    Logger.log("Sheet not found");
+    return;
+  }
+  
+  var today = new Date();
+  var formattedToday = today.toLocaleString();
+  
+  var data = sheet.getDataRange().getValues();
+  
+  var todaysData = data.filter(function(row) {
+    var rowDate = new Date(row[0]);
+    return rowDate.toDateString() === today.toDateString();
+  });
+  
+  var subject = "Daily Report - " + formattedToday;
+  var body = "<h2 style='text-align: center;'>Daily Report for " + formattedToday + "</h2>";
+  
+  if (todaysData.length > 0) {
+    body += "<table style='border-collapse: collapse; width: 100%;'>";
+    body += "<tr style='background-color: #f2f2f2;'>";
+    body += "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>TimeStamp</th>";
+    body += "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>IBS</th>";
+    body += "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>IBS UniCorn</th>";
+    body += "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>IBS XAPI</th>";
+    body += "</tr>";
+
+    todaysData.forEach(function(row) {
+      var formattedRowDate = new Date(row[0]).toLocaleString();
+      body += "<tr>";
+      body += "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + formattedRowDate + "</td>";
+      body += "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + row[1] + "</td>";
+      body += "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + row[2] + "</td>";
+      body += "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + row[3] + "</td>";
+      body += "</tr>";
+    });
+    
+    body += "</table>";
+  } else {
+    body += "<p>No data available for today.</p>";
+  }
+  
+  var emailTo = "wawazer@gmail.com"; 
+  
+  MailApp.sendEmail({
+    to: emailTo,
+    subject: subject,
+    htmlBody: body
+  });
+}
+
+function cleanOldLogs() {
+  var spreadsheetId = "1Hak899h5_hYOEf2s4fLLcTz1PXEkMyxoqDQXhk-QfFk";
+  var sheetName = "LogStatus";
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+  if (!sheet) {
+    return;
+  }
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  var data = sheet.getDataRange().getValues();
+  
+  var today = new Date();
+  
+  var newData = data.filter(function(row) {
+    if (row[0] instanceof Date && row[0] >= today) {
+      return true;
+    }
+    return false;
+  });
+  
+  sheet.clear();
+  
+  sheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
+  
+  if (newData.length > 0) {
+    sheet.getRange(2, 1, newData.length, newData[0].length).setValues(newData);
+  }
+}
+
+function doGet() {
+  var htmlOutput = HtmlService.createHtmlOutputFromFile('WebsiteStatusLog')
+    .setTitle('IBS Status Log');
+  return htmlOutput;
+}
+
+function getWebsiteStatusLog() {
+  var spreadsheetId = "1Hak899h5_hYOEf2s4fLLcTz1PXEkMyxoqDQXhk-QfFk";
+  var sheetName = "LogStatus";
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+  if (!sheet) {
+    return [];
+  }
+  var data = sheet.getDataRange().getValues();
+  
+  for (var i = 0; i < data.length; i++) {
+    data[i][0] = data[i][0].toLocaleString();
+  }
+  
+  return data.slice(1);
+}
+
+function checkWebsitesStatus() {
+  var websites = [
+    {url: "https://ibs.pelindo.co.id/Landing/Landing", name: "ibs.pelindo.co.id"},
+    {url: "https://ibs-unicorn.pelindo.co.id/", name: "ibs-unicorn.pelindo.co.id"},
+    {url: "https://ibs-xapi.pelindo.co.id/", name: "ibs-xapi.pelindo.co.id"}
+  ];
+  var emailTo = "numan.elf@gmail.com"; 
+
+  var options = {
+    'muteHttpExceptions': true
+  };
+
+  var statusLog = { 'TimeStamp': new Date() };
+
+  websites.forEach(function(website) {
+    try {
+      var response = UrlFetchApp.fetch(website.url, options);
+      var statusCode = response.getResponseCode();
+
+      if (statusCode == 200) {
+        Logger.log(website.name + " is up and running!");
+        statusLog[website.name] = "Up";
+      } else {
+        Logger.log(website.name + " is down! Status Code: " + statusCode);
+        sendEmail("Website Down Alert", "Website " + website.name + " is down. Status Code: " + statusCode, emailTo);
+        // sendEmail("Website Down Alert", "Website " + website.name + " is down. Status Code: " + statusCode, emailMasRomy);
+        statusLog[website.name] = "Down";
+      }
+    } catch (e) {
+      Logger.log("Error occurred while trying to access " + website.name + ": " + e.toString());
+      sendEmail("Website Down Alert", "Error occurred while trying to access " + website.name + ": " + e.toString(), emailTo);
+      statusLog[website.name] = "Error";
+    }
+  });
+
+  writeToSheet(statusLog);
+}
+
+function writeToSheet(statusLog) {
+  var spreadsheetId = "1Hak899h5_hYOEf2s4fLLcTz1PXEkMyxoqDQXhk-QfFk";
+  var sheetName = "LogStatus";
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = SpreadsheetApp.openById(spreadsheetId).insertSheet(sheetName);
+    sheet.appendRow(['TimeStamp', 'IBS', 'IBS Unicorn', 'IBS XAPI']);
+  }
+  var timeStamp = statusLog['TimeStamp'];
+  var ibsStatus = statusLog['ibs.pelindo.co.id'];
+  var unicornStatus = statusLog['ibs-unicorn.pelindo.co.id'];
+  var xapiStatus = statusLog['ibs-xapi.pelindo.co.id'];
+  sheet.appendRow([timeStamp, ibsStatus, unicornStatus, xapiStatus]);
+}
+
+function sendEmail(subject, body, recipient) {
+  var htmlBody = "<p style='font-size: 16px; font-weight: bold; color: #FF5733;'>" + subject + "</p>";
+  htmlBody += "<p style='font-size: 14px;'>" + body + "</p>";
+  htmlBody += "<p style='font-size: 14px;'>Please take necessary actions to resolve the issue.</p>";
+
+  MailApp.sendEmail({
+    to: recipient,
+    subject: subject,
+    htmlBody: htmlBody
+  });
+}
