@@ -1,6 +1,6 @@
 function sendDailyReport() {
-  var spreadsheetId = "1m-LLOmm4oZQhm6_wLPfoaX8ZhzDXbTMxXv5-MnAMJ6k";
-  var sheetName = "logscheduller";
+  var spreadsheetId = "1Hak899h5_hYOEf2s4fLLcTz1PXEkMyxoqDQXhk-QfFk";
+  var sheetName = "LogStatus";
   var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
   if (!sheet) {
     Logger.log("Sheet not found");
@@ -44,10 +44,11 @@ function sendDailyReport() {
     body += "<p>No data available for today.</p>";
   }
   
-  var emailTo = "wawazer@gmail.com"; 
+  var emailTo = "numan.elf@gmail.com"; 
+  var emailMasRomy = "romy.kautsar@pelindo.co.id"; 
   
   MailApp.sendEmail({
-    to: emailTo,
+    to: emailTo + "," + emailMasRomy,
     subject: subject,
     htmlBody: body
   });
@@ -111,6 +112,7 @@ function checkWebsitesStatus() {
     {url: "https://ibs-xapi.pelindo.co.id/", name: "ibs-xapi.pelindo.co.id"}
   ];
   var emailTo = "numan.elf@gmail.com"; 
+  var emailMasRomy = "romy.kautsar@pelindo.co.id"; 
 
   var options = {
     'muteHttpExceptions': true
@@ -129,7 +131,7 @@ function checkWebsitesStatus() {
       } else {
         Logger.log(website.name + " is down! Status Code: " + statusCode);
         sendEmail("Website Down Alert", "Website " + website.name + " is down. Status Code: " + statusCode, emailTo);
-        // sendEmail("Website Down Alert", "Website " + website.name + " is down. Status Code: " + statusCode, emailMasRomy);
+        sendEmail("Website Down Alert", "Website " + website.name + " is down. Status Code: " + statusCode, emailMasRomy);
         statusLog[website.name] = "Down";
       }
     } catch (e) {
